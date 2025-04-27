@@ -67,7 +67,7 @@ Because Task Sequences run under the SYSTEM account, you must use `ServiceUI.exe
 Example command line inside your Task Sequence step:
 
 ```
-ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -File "Select-TSOSEdition_withAuto.ps1" -Verbose
+ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -WindowStyle Minimized -File "Select-TSOSEdition_withAuto.ps1" -Verbose
 ```
 
 ✅ Adjust the path as needed for your environment.
@@ -114,7 +114,7 @@ ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -
 Example:
 
 ```
-ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -File "Select-TSOSEdition_withAuto.ps1" -Verbose
+ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -WindowStyle Minimized -File "Select-TSOSEdition_withAuto.ps1" -Verbose
 ```
 
 ---
