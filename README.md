@@ -1,4 +1,4 @@
-# Get-TSOSEdition Toolset
+# Select-TSOSEdition Toolset
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Language: PowerShell](https://img.shields.io/badge/Language-PowerShell-blue.svg)](https://learn.microsoft.com/en-us/powershell/)
@@ -41,7 +41,7 @@ Compatible with Windows 8, Windows 8.1, Windows 10, and Windows 11 deployments.
   - The folder structure should look like this:
 
 ```
-Get-TSOSEdition/
+Select-TSOSEdition/
 ├── Select-TSOSEdition.ps1
 ├── Select-TSOSEdition_withAuto.ps1
 ├── Select-TSOSEdition_withAuto_TESTING.ps1
