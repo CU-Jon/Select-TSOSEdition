@@ -61,6 +61,19 @@ Get-TSOSEdition/
    - **Select-TSOSEdition.ps1** for manual selection.
    - **Select-TSOSEdition_withAuto.ps1** for automatic detection and fallback to manual selection if needed.
 
+⚡ **Important:**  
+Because Task Sequences run under the SYSTEM account, you must use `ServiceUI.exe` to display the script's UI to the logged-in user.
+
+Example command line inside your Task Sequence step:
+
+```
+ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -File "Select-TSOSEdition_withAuto.ps1"
+```
+
+✅ Adjust the path as needed for your environment.
+
+✅ ServiceUI.exe can be found inside the MDT Toolkit or ConfigMgr MDT integration package under `Tools\x64\` or `Tools\x86\`.
+
 3. The script will set the Task Sequence variable **osEdition** to one of the following values:
 
 | Windows Edition | osEdition Value |
@@ -94,6 +107,7 @@ Get-TSOSEdition/
 - Manual or automatic edition selection.
 - Supports Windows 8, 8.1, 10, and 11 deployments.
 - Small footprint — no heavy dependencies beyond ShowKeyPlus.
+- ServiceUI.exe required for UI presentation during Task Sequence.
 
 ---
 
