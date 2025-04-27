@@ -8,11 +8,11 @@
 
 A set of PowerShell scripts to assist with selecting and detecting the correct Windows edition during SCCM Task Sequences.
 
-These scripts are designed to dynamically set an SCCM Task Sequence variable (`osEdition`) based on user selection or automatic detection using BIOS-embedded product keys (via ShowKeyPlus).
+These scripts dynamically set an SCCM Task Sequence variable (`osEdition`) based on user selection or automatic detection using BIOS-embedded product keys (via ShowKeyPlus).
 
 The goal is to allow a single SCCM Task Sequence to intelligently branch and install the correct Windows edition automatically.
 
-These scripts are compatible with Windows 8, Windows 8.1, Windows 10, and Windows 11 deployments.
+Compatible with Windows 8, Windows 8.1, Windows 10, and Windows 11 deployments.
 
 ---
 
@@ -25,7 +25,7 @@ These scripts are compatible with Windows 8, Windows 8.1, Windows 10, and Window
   Script to automatically detect the Windows edition via BIOS OEM key if available, otherwise prompt the user.
 
 - **Select-TSOSEdition_withAuto_TESTING.ps1**  
-  Same as Select-TSOSEdition_withAuto.ps1 but with destructive actions (like setting SCCM Task Sequence variables) commented out for testing purposes.
+  Same as Select-TSOSEdition_withAuto.ps1 but with destructive actions (like setting SCCM Task Sequence variables and logging to file) commented out for testing purposes.
 
 ---
 
@@ -67,7 +67,7 @@ Because Task Sequences run under the SYSTEM account, you must use `ServiceUI.exe
 Example command line inside your Task Sequence step:
 
 ```
-ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -File "Select-TSOSEdition_withAuto.ps1"
+ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -File "Select-TSOSEdition_withAuto.ps1" -Verbose
 ```
 
 ✅ Adjust the path as needed for your environment.
@@ -100,14 +100,33 @@ ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -
 
 ---
 
+## 📋 Logging and Verbose Output
+
+- **Production scripts** (`Select-TSOSEdition.ps1` and `Select-TSOSEdition_withAuto.ps1`) automatically log output to the Task Sequence log folder (`%_SMSTSLogPath%`).
+- The log file name matches the script name, for example:
+  - `Select-TSOSEdition_withAuto.ps1` → `Select-TSOSEdition_withAuto.log`
+  - `Select-TSOSEdition.ps1` → `Select-TSOSEdition.log`
+- The **TESTING script** (`Select-TSOSEdition_withAuto_TESTING.ps1`) does **not** log to a file (logging code is commented out for safety).
+
+- The TESTING script runs in **Verbose** mode **by default**.
+- Production scripts can enable verbose output by running with `-Verbose` at the command line.
+
+Example:
+
+```
+ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -File "Select-TSOSEdition_withAuto.ps1" -Verbose
+```
+
+---
+
 ## ⚡ Quick Summary
 
 - Dynamic Windows edition selection at deployment time.
 - Unified single SCCM Task Sequence to support multiple editions.
 - Manual or automatic edition selection.
 - Supports Windows 8, 8.1, 10, and 11 deployments.
-- Small footprint — no heavy dependencies beyond ShowKeyPlus.
 - ServiceUI.exe required for UI presentation during Task Sequence.
+- Logs written to Task Sequence log path for production scripts.
 
 ---
 
