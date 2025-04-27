@@ -65,6 +65,7 @@ Get-TSOSEdition/
 
 | Windows Edition | osEdition Value |
 |:---|:---|
+| Windows 8/8.1/10/11 Home (Core) | `home` |
 | Windows 8/8.1/10/11 Pro | `pro` |
 | Windows 8/8.1/10/11 Enterprise | `enterprise` |
 | Windows 8/8.1/10/11 Education | `education` |
@@ -75,10 +76,12 @@ Get-TSOSEdition/
    - Add **Install Operating System** steps for each edition you want to support.
    - Add a **Condition** on each step:
      - Example:  
-       `Task Sequence Variable osEdition equals pro`
+       `Task Sequence Variable osEdition equals home`
+     - For Pro Edition:  
+       `osEdition equals pro`
      - For Enterprise Edition:  
        `osEdition equals enterprise`
-     - And so on for each edition.
+     - And so on.
 
 5. This allows a single Task Sequence to handle installing different Windows editions dynamically based on user input or automatic OEM detection.
 
