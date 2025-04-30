@@ -126,11 +126,21 @@ if (Test-Path $keyInfoPath) {
                 }
             }
         }
-
+        
         # Enable Auto option if the edition is detected
         if ($autoEdition -ne "Unknown") {
             $autoOptionEnabled = $true
             Write-TSLog -Message "Auto edition detected: $autoEditionDisplayName" -Type "Info"
+            # We have an auto edition availabe, now store the OEM key value in case the admin/user wants to use it later
+            $oemKeyLine = $keyInfo | Where-Object { $_ -match "OEM Key:\s*(.*)" }
+            if ($oemKeyLine) {
+                Write-TSLog -Message "OEM Key line found: $oemKeyLine" -Type "Info"
+                $null = $oemKeyLine -match "OEM Key:\s*(.*)"
+                $oemKey = $matches[1].Trim()
+                Write-TSLog -Message "OEM Key: $oemKey" -Type "Info"
+            } else {
+                Write-TSLog -Message "No OEM Key line found in keyinfo.txt." -Type "Warning"
+            }
         } else {
             Write-TSLog -Message "No valid OEM edition detected." -Type "Warning"
         }
@@ -237,6 +247,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         # If "Auto" is selected, use the detected edition from ShowKeyPlus
         $selectedShortName = $autoEdition
         Write-TSLog -Message "Set osEdition = $selectedShortName (Auto selected)" -Type "Info"
+        $isAutoEdition = $true
     } else {
         # Get the short name for selected edition
         $selectedShortName = $editionOptions[$selectedDisplayName]
@@ -246,6 +257,19 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
     try {
         $tsenv.Value("osEdition") = $selectedShortName
         Write-TSLog -Message "Set osEdition = $selectedShortName" -Type "Info"
+        if ($isAutoEdition) {
+            $tsenv.Value("isAutoEdition") = "true"
+            Write-TSLog -Message "Set isAutoEdition = true" -Type "Info"
+            if ($oemKey) {
+                $tsenv.Value("oemKey") = $oemKey
+                Write-TSLog -Message "Set oemKey = $oemKey" -Type "Info"
+            } else {
+                Write-TSLog -Message "No OEM key found to set." -Type "Warning"
+            }
+        } else {
+            $tsenv.Value("isAutoEdition") = "false"
+            Write-TSLog -Message "Set isAutoEdition = false" -Type "Info"
+        }
     } catch {
         Write-TSLog -Message "Could not set Task Sequence variable (not running in TS?)" -Type "Error"
         exit 1

@@ -85,7 +85,16 @@ ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -
 | Windows 10/11 Pro for Workstations | `prows` |
 | Windows 10/11 Pro Education | `proedu` |
 
-4. In your Task Sequence:
+4. If the **Select-TSOSEdition_withAuto.ps1** script is used, and the automatically detected edition is selected by the user, the Task Sequence variable **isAutoEdition** will be set to **true**. Otherwise, **false**. This can be handy if you want to add a step to have the client auto-activate with the BIOS key with:
+```
+cscript.exe "%windir%\System32\slmgr.vbs" /ato
+```
+Furthermore, if the automatically detected edition is selected, and an OEM Product Key is found, the OEM Key will be stored in the Task Sequence variable **oemKey**. This is handy if for whatever reason Windows doesn't detect the key after installation, you can use:
+```
+cscript.exe "%windir%\System32\slmgr.vbs" /ipk %oemKey%
+```
+
+5. In your Task Sequence:
    - Add **Install Operating System** steps for each edition you want to support.
    - Add a **Condition** on each step:
      - Example:  
@@ -96,7 +105,7 @@ ServiceUI.exe -process:TSProgressUI.exe powershell.exe -ExecutionPolicy Bypass -
        `osEdition equals enterprise`
      - And so on.
 
-5. This allows a single Task Sequence to handle installing different Windows editions dynamically based on user input or automatic OEM detection.
+6. This allows a single Task Sequence to handle installing different Windows editions dynamically based on user input or automatic OEM detection.
 
 ---
 
