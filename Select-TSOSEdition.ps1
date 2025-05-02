@@ -30,6 +30,20 @@ Add-Type -TypeDefinition @"
   }
 "@ -PassThru | Out-Null
 
+# --- Helpers to bring the GUI to the front while running a task sequence ---
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class User32Ex {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+  [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+  [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+  [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+}
+"@ -PassThru | Out-Null
+
 try {
   [DpiHelper]::SetProcessDpiAwareness([PROCESS_DPI_AWARENESS]::Process_Per_Monitor_DPI_Aware) | Out-Null
 } catch {
@@ -224,10 +238,24 @@ $form.Controls.Add($table)
 
 # ensure the form grabs foreground focus and the dropdown is selected
 $form.Add_Shown({
-    # bring this WinForms window to the front
-    $form.Activate()
-    # set keyboard focus into the combo box
-    $comboBox.Focus()
+  # get the HWND & thread of whatever’s currently foreground (i.e. SCCM UI)
+  $fgHwnd    = [User32Ex]::GetForegroundWindow()
+  $null      = 0
+  $fgThread  = [User32Ex]::GetWindowThreadProcessId($fgHwnd, [ref]$null)
+
+  # get our current thread and attach to the SCCM thread
+  $myThread  = [User32Ex]::GetCurrentThreadId()
+  [User32Ex]::AttachThreadInput($myThread, $fgThread, $true) | Out-Null
+
+  # now we’re allowed to force our window to front
+  [User32Ex]::BringWindowToTop($form.Handle)    | Out-Null
+  [User32Ex]::SetForegroundWindow($form.Handle) | Out-Null
+
+  # detach the input queues again
+  [User32Ex]::AttachThreadInput($myThread, $fgThread, $false) | Out-Null
+
+  # finally, focus the combo
+  $comboBox.Focus()
 })
 
 # Show form
