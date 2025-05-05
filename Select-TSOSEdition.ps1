@@ -11,7 +11,24 @@
 ###############################################################################
 
 [CmdletBinding()]
-param()
+param(
+    [Parameter(Mandatory=$false)]
+    [string]$OsFamily, # Windows 11, Windows 10.... # Will do more with this later. For now, just for display to the user.
+    [Parameter(Mandatory=$false)]
+    [string]$OsEdition, # home, edu, ent, prows, proedu, pro ## To be used in a future version of this script.
+    [Parameter(Mandatory=$false)]
+    [string]$OsVersion # 24H2, 23H2, 22H2.... (only if you actually use this value somewhere in your TS) ## To be used in a future version of this script.
+)
+
+# Display name to short name mapping
+$editionOptions = @{
+    "Home"                  = "home"
+    "Education"             = "edu"
+    "Enterprise"            = "ent"
+    "Pro for Workstations"  = "prows"
+    "Pro Education"         = "proedu"
+    "Pro"                   = "pro"
+}
 
 # --- DPI Helpers: System + Per-Monitor awareness (Win7 → Win10/WinPE) ---
 Add-Type -TypeDefinition @"
@@ -107,22 +124,23 @@ function Write-TSLog {
 Write-TSLog -Message "Running $scriptName" -Type "Info"
 
 # OS Family
-$osFamily = $tsenv.Value("osFamily")  # Get OS family from Task Sequence variable
-if (-not $osFamily) {
-    Write-TSLog -Message "osFamily variable not set. Defaulting to 'Windows 11'." -Type "Warning"
-    $osFamily = "Windows 11"  # Default value if not set
+if (-not ($OsFamily)) {
+    Write-TSLog -Message "OS Family argument not specified, falling back to checking the TS Environment variable..." -Type "Info"
+    if ($($tsenv.Value("osFamily"))) {
+        $OsFamily = $tsenv.Value("osFamily")  # Get OS family from Task Sequence variable, if set
+        Write-TSLog -Message "Got osFamily variable from TS Environment: $OsFamily"
+    } else {
+        Write-TSLog -Message "OS Family argument not specified and not set as a TS Environment variable. Falling back to 'Windows'" -Type "Warning"
+        $OsFamily = "Windows"
+    }
 } else {
-    Write-TSLog -Message "Got osFamily variable: $osFamily" -Type "Info"
-}
-
-# Display name to short name mapping
-$editionOptions = @{
-    "Home"                  = "home"
-    "Education"             = "edu"
-    "Enterprise"            = "ent"
-    "Pro for Workstations"  = "prows"
-    "Pro Education"         = "proedu"
-    "Pro"                   = "pro"
+    Write-TSLog -Message "OS Family specified via argument: $OsFamily" -Type "Info"
+    try {
+        $tsenv.Value("osFamily") = $OsFamily
+        Write-TSLog -Message "Set TS variable 'osFamily' to the specified `"$OsFamily`"" -Type "Info"
+    } catch {
+        Write-TSLog -Message "Could not set Task Sequence variable (not running in TS?)" -Type "Error"
+    }
 }
 
 # Create the form
@@ -130,7 +148,7 @@ $form = New-Object System.Windows.Forms.Form
 $form.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Font
 $form.AutoSize      = $true
 $form.AutoSizeMode  = 'GrowAndShrink'
-$form.Text = "$osFamily Edition Selection"
+$form.Text = "$OsFamily Edition Selection"
 #$form.Size = New-Object System.Drawing.Size(400, 250)  # Increased size for better visibility
 $form.StartPosition = "CenterScreen"
 $form.TopMost = $true  # Keep the form on top of other windows
@@ -140,7 +158,7 @@ $form.Padding     = New-Object System.Windows.Forms.Padding(10)
 
 # Label
 $label = New-Object System.Windows.Forms.Label
-$label.Text = "Select the edition of $osFamily to install:"
+$label.Text = "Select the edition of $OsFamily to install:"
 $label.AutoSize = $true
 
 # ComboBox (Dropdown)

@@ -11,10 +11,31 @@
 ###############################################################################
 
 [CmdletBinding()]
-param()
+param(
+    [Parameter(Mandatory=$false)]
+    [string]$OsFamily, # Windows 11, Windows 10.... # Will do more with this later. For now, just for display to the user.
+    [Parameter(Mandatory=$false)]
+    [string]$OsEdition, # home, edu, ent, prows, proedu, pro ## To be used in a future version of this script.
+    [Parameter(Mandatory=$false)]
+    [string]$OsVersion, # 24H2, 23H2, 22H2.... (only if you actually use this value somewhere in your TS) ## To be used in a future version of this script.
+    [Parameter(Mandatory=$false)]
+    [string]$ShowKeyPlusPath = $(Join-Path "$PSScriptRoot\ShowKeyPlus_x64_1.0.7060" "ShowKeyPlus.exe"), # Must be version 1.0.7060, no greater, no less.
+    [Parameter(Mandatory=$false)]
+    [string]$KeyInfoPath = $(Join-Path $PSScriptRoot "keyinfo.txt") # Path where the key info will be temporarily saved to from SKP
+)
 
 # Allow verbose output
 $VerbosePreference = 'Continue'
+
+# Display name to short name mapping
+$editionOptions = @{
+    "Home"                  = "home"
+    "Education"             = "edu"
+    "Enterprise"            = "ent"
+    "Pro for Workstations"  = "prows"
+    "Pro Education"         = "proedu"
+    "Pro"                   = "pro"
+}
 
 # --- DPI Helpers: System + Per-Monitor awareness (Win7 → Win10/WinPE) ---
 Add-Type -TypeDefinition @"
@@ -110,77 +131,80 @@ function Write-TSLog {
 Write-TSLog -Message "Running $scriptName" -Type "Info"
 
 # OS Family
-<# $osFamily = $tsenv.Value("osFamily")  # Get OS family from Task Sequence variable
-if (-not $osFamily) {
-    Write-TSLog -Message "osFamily variable not set. Defaulting to 'Windows 11'." -Type "Warning"
-    $osFamily = "Windows 11"  # Default value if not set
+if (-not ($OsFamily)) {
+    Write-TSLog -Message "OS Family argument not specified, falling back to checking the TS Environment variable..." -Type "Info"
+    # $tsOsFamily = $tsenv.Value("osFamily") # Get OS family from Task Sequence variable, if set
+    if ($tsOsFamily) {
+        $OsFamily = $tsOsFamily
+        Write-TSLog -Message "Got osFamily variable from TS Environment: $OsFamily"
+    } else {
+        Write-TSLog -Message "OS Family argument not specified and not set as a TS Environment variable. Falling back to 'Windows'" -Type "Warning"
+        $OsFamily = "Windows"
+    }
 } else {
-    Write-TSLog -Message "Got osFamily variable: $osFamily" -Type "Info"
-} #>
-$osFamily = "Windows 11"  # For testing purposes, set to a default value
-Write-TSLog -Message "Got osFamily variable: $osFamily" -Type "Info"
-
-# Display name to short name mapping
-$editionOptions = @{
-    "Home"                  = "home"
-    "Education"             = "edu"
-    "Enterprise"            = "ent"
-    "Pro for Workstations"  = "prows"
-    "Pro Education"         = "proedu"
-    "Pro"                   = "pro"
+    Write-TSLog -Message "OS Family specified via argument: $OsFamily" -Type "Info"
+<#     try {
+        $tsenv.Value("osFamily") = $OsFamily
+        Write-TSLog -Message "Set TS variable 'osFamily' to the specified `"$OsFamily`"" -Type "Info"
+    } catch {
+        Write-TSLog -Message "Could not set Task Sequence variable (not running in TS?)" -Type "Error"
+    } #>
 }
 
-# Define paths for ShowKeyPlus
-$showKeyPlusPath = "$PSScriptRoot\ShowKeyPlus_x64_1.0.7060\ShowKeyPlus.exe"
-Write-TSLog -Message "ShowKeyPlus path: $showKeyPlusPath" -Type "Info"
-$keyInfoPath = "$PSScriptRoot\keyinfo.txt"
-Write-TSLog -Message "Key info path: $keyInfoPath" -Type "Info"
+# If ShowKeyPlus exists at the defined path, run it
+if ((Test-Path $ShowKeyPlusPath)) {
+    Write-TSLog -Message "ShowKeyPlus path: $ShowKeyPlusPath" -Type "Info"
+    Write-TSLog -Message "Key info path: $KeyInfoPath" -Type "Info"
 
-# Run ShowKeyPlus and wait for it to finish
-Write-TSLog -Message "Running ShowKeyPlus to detect OEM edition..." -Type "Info"
-#Start-Process -FilePath $showKeyPlusPath -ArgumentList "`"$keyInfoPath`"" -Wait -ErrorAction SilentlyContinue
-# Configure start‐info
-$psi = New-Object System.Diagnostics.ProcessStartInfo
-$psi.FileName               = $showKeyPlusPath
-$psi.Arguments              = $keyInfoPath
-$psi.RedirectStandardOutput = $true
-$psi.RedirectStandardError  = $true
-$psi.UseShellExecute        = $false
-$psi.CreateNoWindow         = $true
-$psi.WindowStyle            = [System.Diagnostics.ProcessWindowStyle]::Hidden
+    # Run ShowKeyPlus and wait for it to finish
+    Write-TSLog -Message "Running ShowKeyPlus to detect OEM edition..." -Type "Info"
+    #Start-Process -FilePath $ShowKeyPlusPath -ArgumentList "`"$KeyInfoPath`"" -Wait -ErrorAction SilentlyContinue ### This doesn't work as intended for logging purposes. Leaving this here just as reference.
+    # Configure start‐info
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName               = $ShowKeyPlusPath
+    $psi.Arguments              = $KeyInfoPath
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError  = $true
+    $psi.UseShellExecute        = $false
+    $psi.CreateNoWindow         = $true
+    $psi.WindowStyle            = [System.Diagnostics.ProcessWindowStyle]::Hidden
 
-# Launch and capture
-$proc = [System.Diagnostics.Process]::Start($psi)
-# read everything (this blocks until EOF)
-$stdout = $proc.StandardOutput.ReadToEnd()
-$stderr = $proc.StandardError.ReadToEnd()
-# wait for real exit
-$proc.WaitForExit()
+    # Launch and capture
+    $proc = [System.Diagnostics.Process]::Start($psi)
+    # read everything (this blocks until EOF)
+    $stdout = $proc.StandardOutput.ReadToEnd()
+    $stderr = $proc.StandardError.ReadToEnd()
+    # wait for real exit
+    $proc.WaitForExit()
 
-# strip off any final CR/LF so nothing sneaks into the output afterwards
-$stdout = $stdout.TrimEnd("`r","`n")
-$stderr = $stderr.TrimEnd("`r","`n")
+    # strip off any final CR/LF so nothing sneaks into the output afterwards
+    $stdout = $stdout.TrimEnd("`r","`n")
+    $stderr = $stderr.TrimEnd("`r","`n")
 
-# Log the output of ShowKeyPlus
-if ($stdout) {
-    Write-TSLog -Message "ShowKeyPlus output:`n$stdout" -Type "Info"
+    # Log the output of ShowKeyPlus
+    if ($stdout) {
+        Write-TSLog -Message "ShowKeyPlus output:`n$stdout" -Type "Info"
+    } else {
+        Write-TSLog -Message "No output from ShowKeyPlus." -Type "Warning"
+    }
+    if ($stderr) {
+        Write-TSLog -Message "ShowKeyPlus error output:`n$stderr" -Type "Error"
+    } else {
+        Write-TSLog -Message "No error output from ShowKeyPlus." -Type "Info"
+    }
 } else {
-    Write-TSLog -Message "No output from ShowKeyPlus." -Type "Warning"
-}
-if ($stderr) {
-    Write-TSLog -Message "ShowKeyPlus error output:`n$stderr" -Type "Error"
-} else {
-    Write-TSLog -Message "No error output from ShowKeyPlus." -Type "Info"
+    Write-TSLog -Message "ShowKeyPlus.exe not found at $ShowKeyPlusPath. Auto edition detection will be skipped." -Type "Warning"
 }
 
-# Check if the keyinfo.txt file exists
+# Default values, don't change these unless you want weirdness
 $autoOptionEnabled = $false
 $autoEdition = "Unknown"  # Default to Unknown
 $autoEditionDisplayName = "Unknown"  # For displaying to user
 
-if (Test-Path $keyInfoPath) {
+# Check if the keyinfo.txt file exists
+if (Test-Path $KeyInfoPath) {
     # Read the contents of the file
-    $keyInfo = Get-Content $keyInfoPath
+    $keyInfo = Get-Content $KeyInfoPath
 
     # Log contents of keyInfo.txt
     Write-TSLog -Message "keyInfo.txt content:`n$keyInfo" -Type "Info"
@@ -233,7 +257,7 @@ if (Test-Path $keyInfoPath) {
     }
 
     # Delete the keyinfo.txt file after reading its content, as it's no longer needed
-    Remove-Item $keyInfoPath -Force
+    Remove-Item $KeyInfoPath -Force
 } else {
     Write-TSLog -Message "keyinfo.txt not found. Auto edition detection will be skipped." -Type "Warning"
 }
@@ -243,7 +267,7 @@ $form = New-Object System.Windows.Forms.Form
 $form.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Font
 $form.AutoSize      = $true
 $form.AutoSizeMode  = 'GrowAndShrink'
-$form.Text = "$osFamily Edition Selection"
+$form.Text = "$OsFamily Edition Selection"
 #$form.Size = New-Object System.Drawing.Size(400, 250)  # Increased size for better visibility
 $form.StartPosition = "CenterScreen"
 $form.TopMost = $true  # Keep the form on top of other windows
@@ -253,7 +277,7 @@ $form.Padding     = New-Object System.Windows.Forms.Padding(10)
 
 # Label
 $label = New-Object System.Windows.Forms.Label
-$label.Text = "Select the edition of $osFamily to install:"
+$label.Text = "Select the edition of $OsFamily to install:"
 $label.AutoSize = $true
 
 # ComboBox (Dropdown)
@@ -267,9 +291,10 @@ $comboBox.Width = 200
 
 # Only add "Auto" option if a valid edition was detected
 if ($autoOptionEnabled) {
-    $comboBox.Items.Add("Auto (Detected: $autoEditionDisplayName)") | Out-Null
-    # Set the default selection to "Auto (Detected: $autoEditionDisplayName)" if auto edition is available
-    $comboBox.SelectedItem = "Auto (Detected: $autoEditionDisplayName)"
+    $autoEditionComboBoxItem = "Auto (Detected: $autoEditionDisplayName)"
+    $comboBox.Items.Add($autoEditionComboBoxItem) | Out-Null
+    # Set the default selection to $autoEditionComboBoxItem if auto edition is available
+    $comboBox.SelectedItem = $autoEditionComboBoxItem
 }
 
 # OK Button
@@ -287,7 +312,7 @@ $comboBox.Add_SelectedIndexChanged({
 })
 
 # Automatically enable the OK button if auto edition is selected by default
-if ($autoOptionEnabled -and $comboBox.SelectedItem -eq "Auto (Detected: $autoEditionDisplayName)") {
+if ($autoOptionEnabled -and $comboBox.SelectedItem -eq $autoEditionComboBoxItem) {
     $okButton.Enabled = $true
 }
 
@@ -396,7 +421,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::Cancel) {
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
     $selectedDisplayName = $comboBox.SelectedItem.ToString()
 
-    if ($selectedDisplayName -eq "Auto (Detected: $autoEditionDisplayName)" -and $autoOptionEnabled) {
+    if ($selectedDisplayName -eq $autoEditionComboBoxItem -and $autoOptionEnabled) {
         # If "Auto" is selected, use the detected edition from ShowKeyPlus
         $selectedShortName = $autoEdition
         Write-TSLog -Message "Set osEdition = $selectedShortName (Auto selected)" -Type "Info"
