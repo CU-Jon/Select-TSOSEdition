@@ -200,7 +200,7 @@ if (-not($OsFamily) -and $tsenv -and -not($NoOsFamily)) {
 }
 
 # If ShowKeyPlus exists at the defined path, run it
-if ((Test-Path $ShowKeyPlusPath)) {
+if (Test-Path $ShowKeyPlusPath) {
     Write-TSLog -Message "ShowKeyPlus path: $ShowKeyPlusPath" -Type "Info"
     Write-TSLog -Message "Key info path: $KeyInfoPath" -Type "Info"
 
