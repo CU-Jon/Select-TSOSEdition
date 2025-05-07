@@ -15,11 +15,12 @@ param(
     [Parameter(Mandatory=$false)]
     [string]$OsFamily, # Windows 11, Windows 10....
     [Parameter(Mandatory=$false)]
-    [string]$ShowKeyPlusPath = $(Join-Path "$PSScriptRoot\ShowKeyPlus_x64_1.0.7060" "ShowKeyPlus.exe"), # Must be version 1.0.7060, no greater, no less.
+    [string]$ShowKeyPlusPath, # Must be version 1.0.7060, no greater, no less.
     [Parameter(Mandatory=$false)]
-    [string]$KeyInfoPath = $(Join-Path $PSScriptRoot "keyinfo.txt"), # Path where the key info will be temporarily saved to from SKP
+    [ValidatePattern('\.txt$')] # must end in .txt  (case‑insensitive by default)
+    [string]$KeyInfoPath, # Path where the key info will be temporarily saved to from SKP
     [Parameter(Mandatory=$false)]
-    [ValidatePattern('\.log$')]   # must end in .log  (case‑insensitive by default)
+    [ValidatePattern('\.log$')] # must end in .log  (case‑insensitive by default)
     [string]$LogPath, # Defaults to the TS Envrionment log path location later on, unless otherwise specified here
     [Parameter(Mandatory=$false)]
     [switch]$Testing, # Specify this if you're testing outside of a task sequence environment
@@ -33,6 +34,14 @@ $OsFamilyFallback = "Windows"
 # If -OsFamily is not specified and TS Var "osFamily" is not set, default the combo box selection for the OS to this (must match a key name in the below $familyOptions)
 # This doesn't matter if you set -NoOsFamily, as it will skip the OS Family selection altogether.
 $defaultOsFamily = "Windows 11"
+
+# Set default directories if not specified in arguments (this is because WinPE doesn't know what $PSScriptRoot is inside the param block, otherwise we'd just define it there)
+if (-not($ShowKeyPlusPath)) {
+    $ShowKeyPlusPath = Join-Path "$PSScriptRoot" "ShowKeyPlus_x64_1.0.7060\ShowKeyPlus.exe"
+}
+if (-not($KeyInfoPath)) {
+    $KeyInfoPath = Join-Path "$PSScriptRoot" "keyinfo.txt"
+}
 
 # Set up verbose output
 if ($($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) -or $Testing) {
@@ -131,7 +140,7 @@ $scriptName = [System.IO.Path]::GetFileNameWithoutExtension($MyInvocation.MyComm
 # Set the appropriate full log path
 if (-not($LogPath) -and $tsLogPath) {
     Write-Verbose "LogPath not specified. Defaulting to _SMSTSLogPath"
-    $LogPath = Join-Path -Path $tsLogPath -ChildPath ("$scriptName.log")
+    $LogPath = Join-Path "$tsLogPath" "$scriptName.log"
     Write-Verbose "Full log path: $LogPath"
 } elseif ($LogPath) {
     Write-Verbose "-LogPath specified via argument: $LogPath"
@@ -141,8 +150,8 @@ if (-not($LogPath) -and $tsLogPath) {
 
 # Test to make sure the log folder exists, if we have a LogPath
 if ($LogPath) {
-    $logFolder = Split-Path $LogPath -Parent
-    if ($(Test-Path $logFolder)) {
+    $logFolder = Split-Path "$LogPath" -Parent
+    if (Test-Path "$logFolder") {
         Write-Verbose "$logFolder found, will proceed with logging."
     } else {
         Write-Verbose "$logFolder not found. Cannot proceed with logging to here."
@@ -164,7 +173,7 @@ function Write-TSLog {
     # Log to file
     if ($LogPath) {
         try {
-            Add-Content -Path $LogPath -Value $fullMessage
+            Add-Content -Path "$LogPath" -Value $fullMessage
         } catch {
             Write-Verbose "Failed to write to custom log: $($_.Exception.Message)"
         }
@@ -200,7 +209,7 @@ if (-not($OsFamily) -and $tsenv -and -not($NoOsFamily)) {
 }
 
 # If ShowKeyPlus exists at the defined path, run it
-if (Test-Path $ShowKeyPlusPath) {
+if (Test-Path "$ShowKeyPlusPath") {
     Write-TSLog -Message "ShowKeyPlus path: $ShowKeyPlusPath" -Type "Info"
     Write-TSLog -Message "Key info path: $KeyInfoPath" -Type "Info"
 
@@ -250,9 +259,9 @@ $autoEdition = "Unknown"  # Default to Unknown
 $autoEditionDisplayName = "Unknown"  # For displaying to user
 
 # Check if the keyinfo.txt file exists
-if (Test-Path $KeyInfoPath) {
+if (Test-Path "$KeyInfoPath") {
     # Read the contents of the file
-    $keyInfo = Get-Content $KeyInfoPath
+    $keyInfo = Get-Content "$KeyInfoPath"
 
     # Log contents of keyInfo.txt
     Write-TSLog -Message "keyInfo.txt content:`n$keyInfo" -Type "Info"
@@ -305,7 +314,7 @@ if (Test-Path $KeyInfoPath) {
     }
 
     # Delete the keyinfo.txt file after reading its content, as it's no longer needed
-    Remove-Item $KeyInfoPath -Force
+    Remove-Item "$KeyInfoPath" -Force
 } else {
     Write-TSLog -Message "keyinfo.txt not found. Auto edition detection will be skipped." -Type "Warning"
 }
