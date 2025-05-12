@@ -573,7 +573,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             }
         } catch {
             Write-TSLog -Message "Could not set Task Sequence variable (not running in TS?)" -Type "Error"
-            throw "Error setting Task Sequence variable: $_"
+            throw "Error setting Task Sequence variable: $($_.Exception.Message)"
         }
     } else {
         Write-TSLog -Message "TS Environment not loaded, so variables will not be set."
