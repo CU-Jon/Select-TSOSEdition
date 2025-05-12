@@ -120,7 +120,7 @@ if (-not($Testing)) {
     } catch {
         Write-Verbose "Could not create Task Sequence environment object (not running in TS?)"
         #[System.Windows.Forms.MessageBox]::Show("The task sequence environment could not be loaded. Exiting...", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information, [System.Windows.Forms.MessageBoxDefaultButton]::Button1, [System.Windows.Forms.MessageBoxOptions]::DefaultDesktopOnly)
-        throw "The task sequence environment could not be loaded. Exiting..."
+        throw "The task sequence environment could not be loaded."
     }
 } elseif ($Testing) {
     Write-Verbose "We're in testing mode. Not loading the TS Environment."
@@ -520,7 +520,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::Cancel) {
     # Log that the user cancelled the selection
     Write-TSLog -Message "User cancelled the edition selection." -Type "Warning"
     # now exit cleanly from the script
-    exit 1
+    throw "User cancelled the edition selection."
 }
 
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
@@ -573,7 +573,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             }
         } catch {
             Write-TSLog -Message "Could not set Task Sequence variable (not running in TS?)" -Type "Error"
-            exit 1
+            throw "Error setting Task Sequence variable: $_"
         }
     } else {
         Write-TSLog -Message "TS Environment not loaded, so variables will not be set."
