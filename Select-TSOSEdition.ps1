@@ -1,14 +1,40 @@
-###############################################################################
-#                                                                             #
-#          OS Edition Selections for SCCM OS Deployment Task Sequences        #
-#                                                                             #
-#      Allows a user to select their desired Windows edition to install       #
-#                              on the machine.                                #
-#                                                                             #
-#       Script author: Jon Agramonte, Clemson University CCIT                 #
-#                     Contact: jagramo@clemson.edu                            #
-#                                                                             #
-###############################################################################
+<#
+.SYNOPSIS
+This script facilitates the selection of a Windows operating system edition for SCCM OS Deployment Task Sequences.
+
+.DESCRIPTION
+The script provides a graphical user interface (GUI) to allow users to select the desired Windows OS family and edition to install on a machine during an SCCM task sequence. It supports automatic detection of OEM editions using ShowKeyPlus and logs all actions for troubleshooting purposes. The selected values are stored as Task Sequence variables for use in the deployment process.
+
+.PARAMETER OsFamily
+Specifies the OS family (e.g., "Windows 10", "Windows 11"). If not provided, the script attempts to retrieve it from the Task Sequence environment variable "osFamily" or defaults to "Windows".
+
+.PARAMETER ShowKeyPlusPath
+Specifies the path to the ShowKeyPlus executable for detecting OEM editions. Defaults to a predefined path if not provided.
+
+.PARAMETER KeyInfoPath
+Specifies the path to temporarily save key information from ShowKeyPlus. Must end with `.txt`. Defaults to a predefined path if not provided.
+
+.PARAMETER LogPath
+Specifies the path for the log file. Defaults to the Task Sequence environment log path if not provided. If in testing mode, and no log path is specified, logging will not occur.
+
+.PARAMETER Testing
+Enables testing mode, bypassing Task Sequence environment dependencies.
+
+.PARAMETER NoOsFamily
+Skips the OS family selection step if specified and will not attampt to set the osFamily variable in the Task Sequence environment.
+
+.NOTES
+Author: Jon Agramonte, Clemson University CCIT
+Contact: jagramo@clemson.edu
+
+.EXAMPLE
+.\Select-TSOSEdition.ps1 -OsFamily "Windows 11" -Verbose
+Launches the script with "Windows 11" as the OS family and enables verbose logging.
+
+.EXAMPLE
+.\Select-TSOSEdition.ps1 -Testing
+Runs the script in testing mode, bypassing Task Sequence environment dependencies.
+#>
 
 [CmdletBinding()]
 param(
@@ -46,6 +72,7 @@ if (-not($KeyInfoPath)) {
 # Set up verbose output
 if ($($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) -or $Testing) {
     $PSDefaultParameterValues['*:Verbose'] = $true   # turns verbose on
+    $VerbosePreference = "Continue"                 # show verbose output
     Write-Verbose "Verbose output enabled."
 }
 
@@ -187,10 +214,59 @@ function Write-TSLog {
 # Log that we're running the script
 Write-TSLog -Message "Running $scriptName" -Type "Info"
 
+# Functions to get and set variables in the Task Sequence environment
+function Get-TSVariable {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$VariableName
+    )
+
+    if ($Testing -and -not($tsenv)) { # If we're in testing mode, just output what we'd be doing
+        Write-TSLog -Message "In testing mode. Would get TS Variable '$VariableName'" -Type "Info"
+        return $null
+    } elseif (-not($tsenv)) { # Check if the Task Sequence environment object is available
+        Write-TSLog -Message "Task Sequence environment object not available. Cannot get variable $VariableName" -Type "Error"
+        return $null
+    }
+    $variableValue = $tsenv.Value("$VariableName")
+    if ($variableValue) {
+        Write-TSLog -Message "TS Variable '$VariableName' found: $variableValue" -Type "Info"
+        return $variableValue
+    } else {
+        Write-TSLog -Message "TS Variable '$VariableName' not found." -Type "Error"
+        return $null
+    }
+}
+function Set-TSVariable {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$VariableName,
+        [Parameter(Mandatory=$true)]
+        [string]$Value
+    )
+
+    if ($Testing -and -not($tsenv)) { # If we're in testing mode, just output what we'd be doing
+        Write-TSLog -Message "In testing mode. Would set TS Variable '$VariableName' to '$Value'" -Type "Info"
+        return $true
+    } elseif (-not($tsenv)) { # Check if the Task Sequence environment object is available
+        Write-TSLog -Message "Task Sequence environment object not available. Cannot set variable $VariableName" -Type "Error"
+        return $false
+    }
+
+    try {
+        $tsenv.Value("$VariableName") = $Value
+        Write-TSLog -Message "Set TS Variable '$VariableName' to '$Value'" -Type "Info"
+        return $true
+    } catch {
+        Write-TSLog -Message "Failed to set TS Variable '$VariableName': $($_.Exception.Message)" -Type "Error"
+        throw "Failed to set TS Variable '$VariableName': $($_.Exception.Message)"
+    }
+}
+
 # OS Family
 if (-not($OsFamily) -and $tsenv -and -not($NoOsFamily)) {
     Write-TSLog -Message "OsFamily argument not specified, falling back to checking the TS Environment variable..." -Type "Info"
-    $tsOsFamily = $tsenv.Value("osFamily") # Get OS family from Task Sequence variable, if set
+    $tsOsFamily = Get-TSVariable -VariableName "osFamily" # Get OS family from Task Sequence variable, if set
     if ($tsOsFamily) {
         $OsFamily = $tsOsFamily
         Write-TSLog -Message "Got osFamily variable from TS Environment: $OsFamily"
@@ -219,8 +295,8 @@ if (Test-Path "$ShowKeyPlusPath") {
     #Start-Process -FilePath $ShowKeyPlusPath -ArgumentList "`"$KeyInfoPath`"" -Wait -ErrorAction SilentlyContinue ### This doesn't work as intended for logging purposes. Leaving this here just as reference.
     # Configure start‐info
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName               = $ShowKeyPlusPath
-    $psi.Arguments              = $KeyInfoPath
+    $psi.FileName               = "$ShowKeyPlusPath"
+    $psi.Arguments              = "$KeyInfoPath"
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError  = $true
     $psi.UseShellExecute        = $false
@@ -543,60 +619,30 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         Write-TSLog -Message "Selected edition: $selectedEditionShortName (Manual)" -Type "Info"
     }
 
-    if ($tsenv) {
-        try {
-            if ($osFamilyNotSpecified) {
-                $tsenv.Value("osFamily") = $selectedFamilyShortName
-                Write-TSLog -Message "Set osFamily = $selectedFamilyShortName" -Type "Info"
-            } elseif ($OsFamily -and -not($NoOsFamily) -and ($OsFamily -ne $OsFamilyFallback)) {
-                $tsenv.Value("osFamily") = $OsFamily
-                Write-TSLog -Message "Set osFamily = $OsFamily" -Type "Info"
-            } elseif ($NoOsFamily) {
-                Write-TSLog -Message "-NoOsFamily Specified, so osFamily will not be set in the TS Environment." -Type "Info"
-            } else {
-                Write-TSLog -Message "OsFamily not set, so it will not be set in the TS Environment." -Type "Info"
-            }
-            $tsenv.Value("osEdition") = $selectedEditionShortName
-            Write-TSLog -Message "Set osEdition = $selectedEditionShortName" -Type "Info"
-            if ($isAutoEdition) {
-                $tsenv.Value("isAutoEdition") = "true"
-                Write-TSLog -Message "Set isAutoEdition = true" -Type "Info"
-                if ($oemKey) {
-                    $tsenv.Value("oemKey") = $oemKey
-                    Write-TSLog -Message "Set oemKey = $oemKey" -Type "Info"
-                } else {
-                    Write-TSLog -Message "No OEM key found to set." -Type "Warning"
-                }
-            } else {
-                $tsenv.Value("isAutoEdition") = "false"
-                Write-TSLog -Message "Set isAutoEdition = false" -Type "Info"
-            }
-        } catch {
-            Write-TSLog -Message "Could not set Task Sequence variable (not running in TS?)" -Type "Error"
-            throw "Error setting Task Sequence variable: $($_.Exception.Message)"
+    # Set the osFamily variable in the Task Sequence environment
+    if ($osFamilyNotSpecified) {
+        Set-TSVariable -VariableName "osFamily" -Value $selectedFamilyShortName | Out-Null
+    } elseif ($OsFamily -and -not($NoOsFamily) -and ($OsFamily -ne $OsFamilyFallback)) {
+        Set-TSVariable -VariableName "osFamily" -Value $OsFamily | Out-Null
+    } elseif ($NoOsFamily) {
+        Write-TSLog -Message "-NoOsFamily Specified, so osFamily will not be set in the TS Environment." -Type "Info"
+    } else {
+        Write-TSLog -Message "OsFamily not set, so it will not be set in the TS Environment." -Type "Info"
+    }
+    # Set the osEdition variable in the Task Sequence environment
+    Set-TSVariable -VariableName "osEdition" -Value $selectedEditionShortName | Out-Null
+    # Set the isAutoEdition variable in the Task Sequence environment
+    if ($isAutoEdition) {
+        Set-TSVariable -VariableName "isAutoEdition" -Value "true" | Out-Null
+        # Set the oemKey variable in the Task Sequence environment
+        if ($oemKey) {
+            Set-TSVariable -VariableName "oemKey" -Value $oemKey | Out-Null
+        } else {
+            Write-TSLog -Message "No OEM key found to set." -Type "Warning"
         }
     } else {
-        Write-TSLog -Message "TS Environment not loaded, so variables will not be set."
-        if ($osFamilyNotSpecified) {
-            Write-TSLog -Message "Set osFamily = $selectedFamilyShortName" -Type "Info"
-        } elseif ($OsFamily -and -not($NoOsFamily) -and ($OsFamily -ne $OsFamilyFallback)) {
-            Write-TSLog -Message "Set osFamily = $OsFamily" -Type "Info"
-        } elseif ($NoOsFamily) {
-            Write-TSLog -Message "-NoOsFamily Specified, so osFamily will not be set in the TS Environment." -Type "Info"
-        } else {
-            Write-TSLog -Message "OsFamily not set, so it will not be set in the TS Environment." -Type "Info"
-        }
-        Write-TSLog -Message "Set osEdition = $selectedEditionShortName" -Type "Info"
-        if ($isAutoEdition) {
-            Write-TSLog -Message "Set isAutoEdition = true" -Type "Info"
-            if ($oemKey) {
-                Write-TSLog -Message "Set oemKey = $oemKey" -Type "Info"
-            } else {
-                Write-TSLog -Message "No OEM key found to set." -Type "Warning"
-            }
-        } else {
-            Write-TSLog -Message "Set isAutoEdition = false" -Type "Info"
-        }
+        # Set isAutoEdition to false if not auto edition
+        Set-TSVariable -VariableName "isAutoEdition" -Value "false" | Out-Null
     }
 }
 
