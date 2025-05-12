@@ -35,6 +35,15 @@ Specifies the name of the Task Sequence variable to set for auto edition detecti
 .PARAMETER OemKeyVariableName
 Specifies the name of the Task Sequence variable to set for the detected OEM key. Defaults to "oemKey".
 
+.PARAMETER DefaultOsFamily
+If -OsFamily is not specified and TS Var "osFamily" is not set, default the combo box selection for the OS to this (must match a key name in the below $familyOptions).
+This doesn't matter if you set -NoOsFamily, as it will skip the OS Family selection altogether.
+Defaults to "Windows 11" if not specified.
+
+.PARAMETER OsFamilyFallback
+Set the $OsFamily fallback name (just for display to the user in the GUI) if -OsFamily is not specified and TS Var "osFamily" is not set.
+You really shouldn't need to change this unless you have a specific reason to do so.
+
 .NOTES
 Author: Jon Agramonte, Clemson University CCIT
 Contact: jagramo@clemson.edu
@@ -71,15 +80,12 @@ param(
     [Parameter(Mandatory=$false)]
     [string]$IsAutoEditionVariableName = "isAutoEdition", # The name of the Task Sequence variable to set for Auto Edition
     [Parameter(Mandatory=$false)]
-    [string]$OemKeyVariableName = "oemKey" # The name of the Task Sequence variable to set for OEM Key
+    [string]$OemKeyVariableName = "oemKey", # The name of the Task Sequence variable to set for OEM Key
+    [Parameter(Mandatory=$false)]
+    [string]$DefaultOsFamily = "Windows 11", # If -OsFamily is not specified and TS Var "osFamily" is not set, default the combo box selection for the OS to this (must match a key name in the below $familyOptions). This doesn't matter if you set -NoOsFamily, as it will skip the OS Family selection altogether.
+    [Parameter(Mandatory=$false)]
+    [string]$OsFamilyFallback = "Windows" # Set the $OsFamily fallback name (just for display to the user in the GUI) if -OsFamily is not specified and TS Var "osFamily" is not set. You really shouldn't need to change this unless you have a specific reason to do so.
 )
-
-# Set the $OsFamily fallback name (just for display to the user in the GUI) if $OsFamily is not specified
-$OsFamilyFallback = "Windows"
-
-# If -OsFamily is not specified and TS Var "osFamily" is not set, default the combo box selection for the OS to this (must match a key name in the below $familyOptions)
-# This doesn't matter if you set -NoOsFamily, as it will skip the OS Family selection altogether.
-$defaultOsFamily = "Windows 11"
 
 # Set default directories if not specified in arguments (this is because WinPE doesn't know what $PSScriptRoot is inside the param block, otherwise we'd just define it there)
 if (-not($ShowKeyPlusPath)) {
@@ -449,8 +455,8 @@ if ($osFamilyNotSpecified) {
     $comboBoxFamily.DropDownStyle = 'DropDownList'
     $comboBoxFamily.Items.AddRange($familyOptions.Keys)
     $comboBoxFamily.Width = 200
-    # Set the default OS Family combo box selection to $defaultOsFamily
-    $comboBoxFamily.SelectedItem = $defaultOsFamily
+    # Set the default OS Family combo box selection to $DefaultOsFamily
+    $comboBoxFamily.SelectedItem = $DefaultOsFamily
     $comboBoxFamily.Dock = 'Fill'
 }
 $comboBoxEdition = New-Object System.Windows.Forms.ComboBox
