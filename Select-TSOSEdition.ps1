@@ -21,7 +21,19 @@ Specifies the path for the log file. Defaults to the Task Sequence environment l
 Enables testing mode, bypassing Task Sequence environment dependencies.
 
 .PARAMETER NoOsFamily
-Skips the OS family selection step if specified and will not attampt to set the osFamily variable in the Task Sequence environment.
+Skips the OS family selection step if specified and will not attempt to set the osFamily variable in the Task Sequence environment.
+
+.PARAMETER OsFamilyVariableName
+Specifies the name of the Task Sequence variable to set for OS family. Defaults to "osFamily".
+
+.PARAMETER OsEditionVariableName
+Specifies the name of the Task Sequence variable to set for OS edition. Defaults to "osEdition".
+
+.PARAMETER IsAutoEditionVariableName
+Specifies the name of the Task Sequence variable to set for auto edition detection. Defaults to "isAutoEdition".
+
+.PARAMETER OemKeyVariableName
+Specifies the name of the Task Sequence variable to set for the detected OEM key. Defaults to "oemKey".
 
 .NOTES
 Author: Jon Agramonte, Clemson University CCIT
@@ -51,7 +63,15 @@ param(
     [Parameter(Mandatory=$false)]
     [switch]$Testing, # Specify this if you're testing outside of a task sequence environment
     [Parameter(Mandatory=$false)]
-    [switch]$NoOsFamily # Specify this if you want to skip the OS Family selection (e.g. if you know it already)
+    [switch]$NoOsFamily, # Specify this if you want to skip the OS Family selection (e.g. if you know it already)
+    [Parameter(Mandatory=$false)]
+    [string]$OsFamilyVariableName = "osFamily", # The name of the Task Sequence variable to set for OS Family
+    [Parameter(Mandatory=$false)]
+    [string]$OsEditionVariableName = "osEdition", # The name of the Task Sequence variable to set for OS Edition
+    [Parameter(Mandatory=$false)]
+    [string]$IsAutoEditionVariableName = "isAutoEdition", # The name of the Task Sequence variable to set for Auto Edition
+    [Parameter(Mandatory=$false)]
+    [string]$OemKeyVariableName = "oemKey" # The name of the Task Sequence variable to set for OEM Key
 )
 
 # Set the $OsFamily fallback name (just for display to the user in the GUI) if $OsFamily is not specified
@@ -619,30 +639,30 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
         Write-TSLog -Message "Selected edition: $selectedEditionShortName (Manual)" -Type "Info"
     }
 
-    # Set the osFamily variable in the Task Sequence environment
+    # Set the OS Family variable in the Task Sequence environment specified by $OsFamilyVariableName
     if ($osFamilyNotSpecified) {
-        Set-TSVariable -VariableName "osFamily" -Value $selectedFamilyShortName | Out-Null
+        Set-TSVariable -VariableName $OsFamilyVariableName -Value $selectedFamilyShortName | Out-Null
     } elseif ($OsFamily -and -not($NoOsFamily) -and ($OsFamily -ne $OsFamilyFallback)) {
-        Set-TSVariable -VariableName "osFamily" -Value $OsFamily | Out-Null
+        Set-TSVariable -VariableName $OsFamilyVariableName -Value $OsFamily | Out-Null
     } elseif ($NoOsFamily) {
-        Write-TSLog -Message "-NoOsFamily Specified, so osFamily will not be set in the TS Environment." -Type "Info"
+        Write-TSLog -Message "-NoOsFamily Specified, so $OsFamilyVariableName will not be set in the TS Environment." -Type "Info"
     } else {
         Write-TSLog -Message "OsFamily not set, so it will not be set in the TS Environment." -Type "Info"
     }
-    # Set the osEdition variable in the Task Sequence environment
-    Set-TSVariable -VariableName "osEdition" -Value $selectedEditionShortName | Out-Null
-    # Set the isAutoEdition variable in the Task Sequence environment
+    # Set the OS Edition variable in the Task Sequence environment specified by $OsEditionVariableName
+    Set-TSVariable -VariableName $OsEditionVariableName -Value $selectedEditionShortName | Out-Null
+    # Set the auto edition variable in the Task Sequence environment specified by $IsAutoEditionVariableName
     if ($isAutoEdition) {
-        Set-TSVariable -VariableName "isAutoEdition" -Value "true" | Out-Null
-        # Set the oemKey variable in the Task Sequence environment
+        Set-TSVariable -VariableName $IsAutoEditionVariableName -Value "true" | Out-Null
+        # Set the OEM Key variable in the Task Sequence environment specified by $OemKeyVariableName
         if ($oemKey) {
-            Set-TSVariable -VariableName "oemKey" -Value $oemKey | Out-Null
+            Set-TSVariable -VariableName $OemKeyVariableName -Value $oemKey | Out-Null
         } else {
             Write-TSLog -Message "No OEM key found to set." -Type "Warning"
         }
     } else {
-        # Set isAutoEdition to false if not auto edition
-        Set-TSVariable -VariableName "isAutoEdition" -Value "false" | Out-Null
+        # Set auto edition variable specified by $IsAutoEditionVariableName to false if not auto edition
+        Set-TSVariable -VariableName $IsAutoEditionVariableName -Value "false" | Out-Null
     }
 }
 
