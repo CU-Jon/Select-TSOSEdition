@@ -115,11 +115,12 @@ try {
 # Load the COM object for the Task Sequence environment
 if (-not($Testing)) {
     try {
-        $tsenv = New-Object -ComObject Microsoft.SMS.TSEnvironment
+        $tsenv = New-Object -ComObject Microsoft.SMS.TSEnvironment -ErrorAction Stop
+        Write-Verbose "Task Sequence environment object created successfully."
     } catch {
         Write-Verbose "Could not create Task Sequence environment object (not running in TS?)"
         #[System.Windows.Forms.MessageBox]::Show("The task sequence environment could not be loaded. Exiting...", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information, [System.Windows.Forms.MessageBoxDefaultButton]::Button1, [System.Windows.Forms.MessageBoxOptions]::DefaultDesktopOnly)
-        exit 1
+        throw "The task sequence environment could not be loaded. Exiting..."
     }
 } elseif ($Testing) {
     Write-Verbose "We're in testing mode. Not loading the TS Environment."
@@ -173,7 +174,7 @@ function Write-TSLog {
     # Log to file
     if ($LogPath) {
         try {
-            Add-Content -Path "$LogPath" -Value $fullMessage
+            Add-Content -Path "$LogPath" -Value $fullMessage -ErrorAction Stop
         } catch {
             Write-Verbose "Failed to write to custom log: $($_.Exception.Message)"
         }
