@@ -172,7 +172,7 @@ if (-not($Testing)) {
         Write-Verbose "Task Sequence environment object created successfully."
     } catch {
         Write-Verbose "Could not create Task Sequence environment object (not running in TS?)"
-        #[System.Windows.Forms.MessageBox]::Show("The task sequence environment could not be loaded. Exiting...", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information, [System.Windows.Forms.MessageBoxDefaultButton]::Button1, [System.Windows.Forms.MessageBoxOptions]::DefaultDesktopOnly)
+        [void][System.Windows.Forms.MessageBox]::Show("The task sequence environment could not be loaded. Exiting...", "Error", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Stop, [System.Windows.Forms.MessageBoxDefaultButton]::Button1)
         throw "The task sequence environment could not be loaded."
     }
 } elseif ($Testing) {
@@ -509,7 +509,7 @@ $cancelButton.Add_Click({
     # bring the form itself to the front first
     $form.Activate()
     # Show message dialog to notify the user
-    [System.Windows.Forms.MessageBox]::Show($form, "You have cancelled the edition selection. The task sequence will stop now.", "Cancelled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information, [System.Windows.Forms.MessageBoxDefaultButton]::Button1)
+    [System.Windows.Forms.MessageBox]::Show($form, "You have cancelled the edition selection. The task sequence will stop now.", "Cancelled", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Stop, [System.Windows.Forms.MessageBoxDefaultButton]::Button1)
 
     $form.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
 
